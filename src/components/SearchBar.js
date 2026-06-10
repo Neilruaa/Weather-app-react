@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, FlatList, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { searchCity } from '../services/weatherApi';
 
 const SearchBar = ({ onSelectCity }) => {
@@ -61,18 +61,16 @@ const SearchBar = ({ onSelectCity }) => {
 
       {results.length > 0 && (
         <View style={styles.resultsContainer}>
-          <FlatList
-            data={results}
-            keyExtractor={(item) => `${item.id}-${item.latitude}`}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.resultItem} onPress={() => handleSelect(item)}>
+          <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled">
+            {results.map((item) => (
+              <TouchableOpacity key={`${item.id}-${item.latitude}`} style={styles.resultItem} onPress={() => handleSelect(item)}>
                 <Text style={styles.resultName}>{item.name}</Text>
                 <Text style={styles.resultDetails}>
                   {item.admin1 ? `${item.admin1}, ` : ''}{item.country}
                 </Text>
               </TouchableOpacity>
-            )}
-          />
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>
