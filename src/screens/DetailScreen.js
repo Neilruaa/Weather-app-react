@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchWeatherByCoords } from '../services/weatherApi';
 import { getWeatherDetails } from '../utils/weatherCodes';
 import { getWindDirection } from '../utils/windDirection';
+import { addFavorite, removeFavorite, isFavorite } from '../services/favoritesStorage';
 import DetailRow from '../components/DetailRow';
 
 const DetailScreen = ({ route, navigation }) => {
@@ -12,21 +13,36 @@ const DetailScreen = ({ route, navigation }) => {
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isFav, setIsFav] = useState(false);
 
   useEffect(() => {
-    const loadWeather = async () => {
+    const loadWeatherAndFavorite = async () => {
       try {
-        const data = await fetchWeatherByCoords(latitude, longitude);
+        const [data, favStatus] = await Promise.all([
+          fetchWeatherByCoords(latitude, longitude),
+          isFavorite(latitude, longitude)
+        ]);
         data.details = getWeatherDetails(data.current.weather_code);
         setWeatherData(data);
+        setIsFav(favStatus);
       } catch (error) {
         setErrorMsg('Impossible de charger la météo.');
       } finally {
         setLoading(false);
       }
     };
-    loadWeather();
+    loadWeatherAndFavorite();
   }, [latitude, longitude]);
+
+  const toggleFavorite = async () => {
+    if (isFav) {
+      await removeFavorite(latitude, longitude);
+      setIsFav(false);
+    } else {
+      await addFavorite({ latitude, longitude, name, country, admin1 });
+      setIsFav(true);
+    }
+  };
 
   const formatTime = (isoString) => {
     if (!isoString) return '--:--';
@@ -142,9 +158,13 @@ const DetailScreen = ({ route, navigation }) => {
           Dernière mise à jour : Aujourd'hui {formatTime(current.time)}
         </Text>
 
-        {/* Le bouton favoris sera rendu actif dans le commit 5 */}
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Text style={styles.favoriteButtonText}>⭐ Ajouter aux favoris</Text>
+        <TouchableOpacity 
+          style={[styles.favoriteButton, isFav && styles.favoriteButtonActive]} 
+          onPress={toggleFavorite}
+        >
+          <Text style={styles.favoriteButtonText}>
+            {isFav ? '⭐ Retirer des favoris' : '☆ Ajouter aux favoris'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -250,6 +270,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   favoriteButtonText: {
     color: '#ffffff',

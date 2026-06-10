@@ -1,17 +1,47 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { fetchWeatherByCoords } from '../services/weatherApi';
 import { getWeatherDetails } from '../utils/weatherCodes';
+import { getFavorites } from '../services/favoritesStorage';
 import CurrentWeatherCard from '../components/CurrentWeatherCard';
+import FavoriteCard from '../components/FavoriteCard';
 import SearchBar from '../components/SearchBar';
+
 
 const HomeScreen = ({ navigation }) => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [currentWeather, setCurrentWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [favorites, setFavorites] = useState([]);
+  const [favoritesWeather, setFavoritesWeather] = useState({});
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorites();
+    }, [])
+  );
+
+  const loadFavorites = async () => {
+    const favs = await getFavorites();
+    setFavorites(favs);
+    
+    // Charger la météo pour chaque favori
+    const weathers = {};
+    for (let fav of favs) {
+      try {
+        const data = await fetchWeatherByCoords(fav.latitude, fav.longitude);
+        data.details = getWeatherDetails(data.current.weather_code);
+        weathers[`${fav.latitude}-${fav.longitude}`] = data;
+      } catch (err) {
+        console.error('Erreur météo favori:', err);
+      }
+    }
+    setFavoritesWeather(weathers);
+  };
 
   useEffect(() => {
     (async () => {
@@ -86,8 +116,19 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.favoritesSection}>
           <Text style={styles.sectionTitle}>VILLES FAVORITES</Text>
           <View style={styles.favoritesGrid}>
-            <Text style={styles.emptyFavorites}>Aucune ville en favoris pour l'instant.</Text>
-            {/* Les favoris seront implémentés dans le commit 5 */}
+            {favorites.length === 0 ? (
+              <Text style={styles.emptyFavorites}>Aucune ville en favoris pour l'instant.</Text>
+            ) : (
+              favorites.map((fav, index) => (
+                <View key={index} style={styles.favoriteCardContainer}>
+                  <FavoriteCard 
+                    city={fav} 
+                    weatherData={favoritesWeather[`${fav.latitude}-${fav.longitude}`]} 
+                    onPress={() => handleSelectCity(fav)}
+                  />
+                </View>
+              ))
+            )}
           </View>
         </View>
       </ScrollView>
@@ -148,7 +189,11 @@ const styles = StyleSheet.create({
   favoritesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    justifyContent: 'space-between',
+  },
+  favoriteCardContainer: {
+    width: '48%', // 2 colonnes
+    marginBottom: 16,
   },
   emptyFavorites: {
     color: '#a0aec0',
