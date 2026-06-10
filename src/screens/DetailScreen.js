@@ -15,22 +15,25 @@ const DetailScreen = ({ route, navigation }) => {
   const [errorMsg, setErrorMsg] = useState('');
   const [isFav, setIsFav] = useState(false);
 
+  const loadWeatherAndFavorite = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const [data, favStatus] = await Promise.all([
+        fetchWeatherByCoords(latitude, longitude),
+        isFavorite(latitude, longitude)
+      ]);
+      data.details = getWeatherDetails(data.current.weather_code);
+      setWeatherData(data);
+      setIsFav(favStatus);
+    } catch (error) {
+      setErrorMsg('Impossible de charger la météo. Vérifiez votre connexion.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadWeatherAndFavorite = async () => {
-      try {
-        const [data, favStatus] = await Promise.all([
-          fetchWeatherByCoords(latitude, longitude),
-          isFavorite(latitude, longitude)
-        ]);
-        data.details = getWeatherDetails(data.current.weather_code);
-        setWeatherData(data);
-        setIsFav(favStatus);
-      } catch (error) {
-        setErrorMsg('Impossible de charger la météo.');
-      } finally {
-        setLoading(false);
-      }
-    };
     loadWeatherAndFavorite();
   }, [latitude, longitude]);
 
@@ -81,6 +84,9 @@ const DetailScreen = ({ route, navigation }) => {
         </View>
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>{errorMsg || 'Données indisponibles'}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadWeatherAndFavorite}>
+            <Text style={styles.retryButtonText}>Réessayer</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -201,6 +207,21 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ff8a8a',
     fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   mainCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',

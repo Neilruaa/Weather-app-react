@@ -43,37 +43,41 @@ const HomeScreen = ({ navigation }) => {
     setFavoritesWeather(weathers);
   };
 
-  useEffect(() => {
-    (async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setErrorMsg('Permission de localisation refusée.');
-          setLoading(false);
-          return;
-        }
-
-        let location = await Location.getCurrentPositionAsync({});
-        const lat = location.coords.latitude;
-        const lon = location.coords.longitude;
-
-        let reverseGeocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
-        const city = reverseGeocode[0]?.city || reverseGeocode[0]?.subregion || 'Position actuelle';
-        const country = reverseGeocode[0]?.country || '';
-
-        setCurrentLocation({ name: city, country });
-
-        const weatherData = await fetchWeatherByCoords(lat, lon);
-        weatherData.details = getWeatherDetails(weatherData.current.weather_code);
-        setCurrentWeather(weatherData);
-
-      } catch (error) {
-        setErrorMsg('Erreur lors de la récupération des données.');
-        console.error(error);
-      } finally {
+  const loadInitialData = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg('Permission de localisation refusée.');
         setLoading(false);
+        return;
       }
-    })();
+
+      let location = await Location.getCurrentPositionAsync({});
+      const lat = location.coords.latitude;
+      const lon = location.coords.longitude;
+
+      let reverseGeocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
+      const city = reverseGeocode[0]?.city || reverseGeocode[0]?.subregion || 'Position actuelle';
+      const country = reverseGeocode[0]?.country || '';
+
+      setCurrentLocation({ name: city, country });
+
+      const weatherData = await fetchWeatherByCoords(lat, lon);
+      weatherData.details = getWeatherDetails(weatherData.current.weather_code);
+      setCurrentWeather(weatherData);
+
+    } catch (error) {
+      setErrorMsg('Erreur réseau ou localisation introuvable.');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInitialData();
   }, []);
 
   const handleSelectCity = (city) => {
@@ -104,6 +108,9 @@ const HomeScreen = ({ navigation }) => {
         ) : errorMsg ? (
           <View style={styles.centerContainer}>
             <Text style={styles.errorText}>{errorMsg}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={loadInitialData}>
+              <Text style={styles.retryButtonText}>Réessayer</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <CurrentWeatherCard
@@ -175,6 +182,20 @@ const styles = StyleSheet.create({
     color: '#ff8a8a',
     fontSize: 16,
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   favoritesSection: {
     marginTop: 16,
